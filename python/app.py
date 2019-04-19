@@ -11,6 +11,7 @@ from sanic.log import logger
 from sanic.response import json
 from sanic_openapi import swagger_blueprint, doc
 
+import baidu
 from familia_wrapper import InferenceEngineWrapper, TopicalWordEmbeddingsWrapper
 
 app = Sanic("Familia", strict_slashes=True)
@@ -24,7 +25,7 @@ RE_BACKSPACES = re.compile("\b+")
 model_name = os.environ.get("MODEL_NAME", 'news').lower()
 n_workers = int(os.environ.get('WORKERS', multiprocessing.cpu_count()))
 
-model_dir = f"/familia/model/{model_name}"
+model_dir = f"/Users/lichengzhi/bailian/package/Familia/model/{model_name}"
 emb_file = f"{model_name}_twe_lda.model"
 
 inference_engine_lda = InferenceEngineWrapper(model_dir, 'lda.conf', emb_file)
@@ -58,6 +59,28 @@ def read_topic_words_from_file(topic_words_file_name='topic_words.lda.txt'):
 
 
 lda_topic_words = read_topic_words_from_file()
+
+
+def get_apperence(word, sentence):
+    ret = 0
+    head = 0
+    tail = len(sentence)
+    pos = sentence.find(word, head, tail)
+    while pos > 0:
+        ret += 1
+        head = pos + len(word)
+        pos = sentence.find(word, head, tail)
+    return ret
+
+
+def check_repeat(word, tags):
+    x = word.lower()
+    for item in tags:
+        y = item.lower()
+        if y.find(x) > -1 or x.find(y) > -1:
+            return True
+    return False
+
 
 
 def get_param(request, param_name, default_value=None, is_list=False):
@@ -305,6 +328,70 @@ async def nearest_words(request):
             result = {int(_id): twe.nearest_words_around_topic(int(_id), n) for _id in topic_id}
             return response(data=result)
         return error_response()
+    except Exception as err:
+        logger.error(err, exc_info=True)
+        return error_response(str(err))
+
+
+@app.route('/extract_keywords', methods=["POST"])
+@doc.summary("关键词提取")
+@doc.description("提取给定文本的关键词")
+@doc.consumes(doc.String(name='text', description="文本"), required=True)
+@doc.response(200, None, description="""返回一个list对象，每个元素为提取出的关键词""")
+async def extract_keywords(request):
+    try:
+        text = get_param(request, 'text')
+        if type(text) == list:
+            text = ' '.join(text)
+        # tr4w = TextRank4Keyword()
+        # tr4w.analyze(text=text, lower=True, window=5)
+        # keywords = list()
+        # keywords.extend([item.word for item in tr4w.get_keywords(top_k, word_min_len=word_min_len)])
+        # keywords.extend(tr4w.get_keyphrases(keywords_num=top_k, min_occur_num=1))
+        tags = list()
+        topic_words = dict()
+        black_items = list()
+        ner = baidu.original_lexer(text)
+        for item in ner:
+            word = item.get('item')
+            if item.get('pos').startswith('n'):
+                if item.get('pos') == 'n':
+                    topic_words[word] = topic_words.get(word, 0)
+                else:
+                    topic_words[word] = topic_words.get(word, 0) + 0.01
+            elif (item.get('ne') is not '') and (not item.get('ne').startswith('TIME')):
+                topic_words[word] = topic_words.get(word, 0) + 0.01
+            else:
+                for it in item.get('basic_words'):
+                    black_items.append(it)
+                black_items.append(word)
+        seg_list = inference_engine_lda.tokenize(text)
+        for item in seg_list:
+            if item not in black_items:
+                topic_words[item] = 0
+        topic_dict = inference_engine_lda.lda_infer(seg_list)
+        for topic_tuple in topic_dict:
+            weight = topic_tuple[1]
+            words_tuple = lda_topic_words[topic_tuple[0]]
+            selected_word = ''
+            selected_weight = 0
+            for k, v in words_tuple:
+                if k in topic_words.keys():
+                    apperence = get_apperence(k, text)
+                    w = v * weight + apperence * 0.001
+                    if w > selected_weight:
+                        selected_word = k
+                        selected_weight = w
+            topic_words[selected_word] = max(topic_words.get(selected_word, 0), selected_weight)
+        words_list = sorted(topic_words.items(), key=lambda topic_words: topic_words[1], reverse=True)
+        for word, weight in words_list:
+            if len(tags) < 6 and weight > 0.001 and not check_repeat(word, tags):
+                tags.append(word)
+            else:
+                break
+        logger.info(f'Point: {text}')
+        logger.info(f'Tag: {tags}')
+        return response(data=tags)
     except Exception as err:
         logger.error(err, exc_info=True)
         return error_response(str(err))
