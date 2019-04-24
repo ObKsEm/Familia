@@ -25,7 +25,8 @@ RE_BACKSPACES = re.compile("\b+")
 model_name = os.environ.get("MODEL_NAME", 'news').lower()
 n_workers = int(os.environ.get('WORKERS', multiprocessing.cpu_count()))
 
-model_dir = f"/familia/model/{model_name}"
+# model_dir = f"/familia/model/{model_name}"
+model_dir = f"/Users/lichengzhi/bailian/workspace/Familia/model/{model_name}"
 emb_file = f"{model_name}_twe_lda.model"
 
 inference_engine_lda = InferenceEngineWrapper(model_dir, 'lda.conf', emb_file)
@@ -357,9 +358,9 @@ async def extract_keywords(request):
                 if item.get('pos') == 'n':
                     topic_words[word] = topic_words.get(word, 0)
                 else:
-                    topic_words[word] = topic_words.get(word, 0) + 0.01
+                    topic_words[word] = topic_words.get(word, 0) + 0.1
             elif (item.get('ne') is not '') and (not item.get('ne').startswith('TIME')):
-                topic_words[word] = topic_words.get(word, 0) + 0.01
+                topic_words[word] = topic_words.get(word, 0) + 0.1
             else:
                 for it in item.get('basic_words'):
                     black_items.append(it)
