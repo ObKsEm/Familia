@@ -25,8 +25,8 @@ RE_BACKSPACES = re.compile("\b+")
 model_name = os.environ.get("MODEL_NAME", 'news').lower()
 n_workers = int(os.environ.get('WORKERS', multiprocessing.cpu_count()))
 
-# model_dir = f"/familia/model/{model_name}"
-model_dir = f"/Users/lichengzhi/bailian/workspace/Familia/model/{model_name}"
+model_dir = f"/familia/model/{model_name}"
+# model_dir = f"/Users/lichengzhi/bailian/workspace/Familia/model/{model_name}"
 emb_file = f"{model_name}_twe_lda.model"
 
 inference_engine_lda = InferenceEngineWrapper(model_dir, 'lda.conf', emb_file)
