@@ -354,8 +354,8 @@ async def extract_keywords(request):
         ner = baidu.original_lexer(text)
         for item in ner:
             word = item.get('item')
-            if item.get('pos').startswith('n'):
-                if item.get('pos') == 'n':
+            if item.get('pos').startswith('n') or item.get('pos') == 'vn':
+                if item.get('pos') == 'n' or item.get('pos') == 'vn':
                     topic_words[word] = topic_words.get(word, 0)
                 else:
                     topic_words[word] = topic_words.get(word, 0) + 0.1
