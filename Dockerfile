@@ -14,6 +14,6 @@ RUN apk add make gcc g++ && \
 
 ENV LD_LIBRARY_PATH=/familia/third_party/lib:$LD_LIBRARY_PATH
 
-EXPOSE 5000
+EXPOSE 5001
 
 CMD ["python", "python/app.py"]

@@ -82,7 +82,6 @@ def check_repeat(word, tags):
     return False
 
 
-
 def get_param(request, param_name, default_value=None, is_list=False):
     param_value = (request.form.getlist(param_name) if is_list else request.form.getlist(param_name)) or \
                   request.args.get(param_name) or \
